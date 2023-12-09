@@ -2,6 +2,7 @@
 // LinAlgEq.cs  Defines a class for a linear algebraic equations solver
 //============================================================================
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 public class LinAlgEq
 {
@@ -72,14 +73,34 @@ public class LinAlgEq
 
         // perform Gauss elimination
         // ######## YOU MUST WRITE YOUR GAUSS ELIMINATION CODE HERE
-        // ######## FIRST, GET IT WORKING WITHOUT PIVOTING
-        // ########     ONCE YOU GET IT WORKING WITHOUT PIVOTING, 
-        // ########     THEN YOU CAN IMPLEMENT PIVOTING WITH ONE 
         // ########     WELL-PLACED CALL TO THE pivotRow METHOD BELOW.
-        
+
+        double FactorVal;       // Factor to multiply pivot element by to subtract from lower rows
+        for(i=0; i<(n-1); ++i)  // Going through maxtrix of nxn size without the b nx1 matrix
+        {
+            PivotRow(i);
+            for(j=i+1; j<n; ++j)                        
+            {
+                FactorVal = (M[j][i]) / (M[i][i]);      // Finding Factor for each pivot element
+                for(k=i; k<=n; ++k)
+                {
+                    M[j][k] = M[j][k] - (FactorVal * M[i][k]);
+                }
+            }
+        }
 
         // perform back substitution
         // ######## YOU MUST WRITE YOUR BACK SUBSTITUTION CODE HERE
+        double SumVal;          
+        for(i=n-1; i>=0; --i)
+        {
+            SumVal = M[i][n];
+            for(j=n-1; j>i; --j)
+            {
+                SumVal = SumVal - (M[i][j] * _x[j]);
+            }
+            _x[i] = SumVal / M[i][i];
+        }
     }
 
     //--------------------------------------------------------------------

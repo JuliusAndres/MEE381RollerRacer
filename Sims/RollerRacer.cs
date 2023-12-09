@@ -20,8 +20,13 @@ public class RollerRacer : Simulator
     double kPDelta;  // proportional gain for steer filter
     double kDDelta;  // derivative gain for steer filter
     double deltaDes; // desired steer angle
+    double TSpeed;   // Value for total speed of Cart
+    double TKinetic; // Value for total kinetic energy of Cart
 
+    double KPslip;  // Variable to prevent slip
     double muS;      // static frict coeff, lower bound
+
+    LinAlgEq sys;   // system of linear algebraic equations
 
     bool simBegun;   // indicates whether simulation has begun
 
@@ -35,6 +40,9 @@ public class RollerRacer : Simulator
             0.15 /*steered wheel radius*/);
         kPDelta = 10.0;
         kDDelta = 4.0;
+        KPslip = 2.0;
+        
+        sys = new LinAlgEq(5);  // Creating Matrix for Gauss Elim
 
         x[0] = 0.0;   // x coordinate of center of mass
         x[1] = 0.0;   // xDot, time derivative of x
@@ -71,19 +79,74 @@ public class RollerRacer : Simulator
         double sinPsiPlusDelta = Math.Sin(psi + delta);
 
         // #### You will do some hefty calculations here
+        // Defining DeltaDDot from equation 12
+        double deltaDDot = (-kDDelta*deltaDot) - kPDelta*(delta-deltaDes);
+
+        // Defining slip equations from equation 5 and equation 9 from notes
+        double SlipRateRear = xDot*sinPsi + zDot*cosPsi + b*psiDot;
+        double SlipRateFront = xDot*sinPsiPlusDelta + zDot*cosPsiPlusDelta - h*psiDot*cosDelta + d*(psiDot+deltaDot);
+
+        // Unknown Variable Matrix Order xDDot 0, zDDot 1, psiDDot 2, F_b 3, and F_f 4
+        // Notes Equation 1 for matrix: m*xDDot - F_f*sinPsi+Delta - F_b*sinPsi = 0
+        sys.A[0][0] = m;
+        sys.A[0][1] = 0.0;
+        sys.A[0][2] = 0.0;
+        sys.A[0][3] = -sinPsi;
+        sys.A[0][4] = -sinPsiPlusDelta;
+        sys.b[0] = 0.0;
+
+        // Notes Equation 2 for matrix: m*zDDot - F_f*cosPsi+Delta - F_b*cosPsi = 0
+        sys.A[1][0] = 0.0;
+        sys.A[1][1] = m;
+        sys.A[1][2] = 0.0;
+        sys.A[1][3] = -cosPsi;
+        sys.A[1][4] = -cosPsiPlusDelta;
+        sys.b[1] = 0.0;
+
+        // Notes Equation 3 for matrix: I_g*PsiDDot + F_f*(h*cosDelta-d) - F_b*b = 0
+        sys.A[2][0] = 0.0;
+        sys.A[2][1] = 0.0;
+        sys.A[2][2] = Ig;
+        sys.A[2][3] = -b;
+        sys.A[2][4] = (h * cosDelta) - d;
+        sys.b[2] = 0.0;
+
+        // Notes Equation 7 for matrix: xDDot*sinPsi + zDDot*cosPsi + psiDDot*b = zDot*psiDot*sinPsi - xDot*psiDot*cosPsi
+        // Eliminating slip by inputting -slip = -Kp*SlipRateRear into equation
+        sys.A[3][0] = sinPsi;
+        sys.A[3][1] = cosPsi;
+        sys.A[3][2] = b;
+        sys.A[3][3] = 0.0;
+        sys.A[3][4] = 0.0;
+        sys.b[3] = (zDot*psiDot*sinPsi) - (xDot*psiDot*cosPsi) - (KPslip*SlipRateRear);
+
+        // Notes Equation 10 for matrix: xDDot*sinPsi+Delta + zDDot*cosPsi+Delta - psiDDot*h*cosDelta + psiDDot*d
+        //                             = -deltaDDot*d - xDot*(psiDot+deltaDot)*cosPsi+Delta + zDot*(psiDot+deltaDot)*sinPsi+Delta
+        //                               -h*psiDot*deltaDot*sindelta
+        // Eliminating slip like in equation 7 by inputting -slip = -Kp*SlipRateFront
+        sys.A[4][0] = sinPsiPlusDelta;
+        sys.A[4][1] = cosPsiPlusDelta;
+        sys.A[4][2] = (-h*cosDelta) + d;
+        sys.A[4][3] = 0.0;
+        sys.A[4][4] = 0.0;
+        sys.b[4] = (-deltaDDot*d) - xDot*(psiDot+deltaDot)*cosPsiPlusDelta + zDot*(psiDot+deltaDot)*sinPsiPlusDelta 
+                    - h*psiDot*deltaDot*sinDelta - (KPslip*SlipRateFront);
+
+        sys.SolveGauss();
 
         // #### Right sides are zero for now. You will fix
-        ff[0] = 0.0;
-        ff[1] = 0.0;
-        ff[2] = 0.0;
-        ff[3] = 0.0;
-        ff[4] = 0.0;
-        ff[5] = 0.0;
-        ff[6] = 0.0;
-        ff[7] = 0.0;
-        ff[8] = 0.0;
+        ff[0] = xDot;
+        ff[1] = sys.sol[0];
+        ff[2] = zDot;
+        ff[3] = sys.sol[1];
+        ff[4] = psiDot;
+        ff[5] = sys.sol[2];
+        // Equations for wheel rotation 11a for ff[6], 11b for ff[7], 11c for ff[8]
+        ff[6] = (-xDot*cosPsi + zDot*sinPsi + c*psiDot) / rW;
+        ff[7] = (-xDot*cosPsi + zDot*sinPsi - c*psiDot) / rW;
+        ff[8] = (-xDot*cosPsiPlusDelta + zDot*sinPsiPlusDelta - h*psiDot*sinDelta) / rWs;
         ff[9] = deltaDot;
-        ff[10] = -kDDelta*deltaDot -kPDelta*(delta - deltaDes);
+        ff[10] = deltaDDot;     // Changed to be deltaDDot so variable can be used in equation 10
 
         simBegun = true;
     }
@@ -211,8 +274,10 @@ public class RollerRacer : Simulator
     {
         get{
             // ######## You have to write this part ################
+            // Total speed should equal the velocity in x and z directions
+            TSpeed = Math.Sqrt((x[1]*x[1]) + (x[3]*x[3]));
 
-            return(-1.21212121);
+            return(TSpeed);
         }
     }
 
@@ -220,8 +285,10 @@ public class RollerRacer : Simulator
     {
         get{
             // ######## You have to write this part ################
-
-            return(-1.21212121);
+            // Total kinetic energy should be the kinetic energy from speed and kinetic energy from inertia
+            // Kinetic energy speed equation: 1/2 * m * v^2 and interia is 1/2 * Moment of Interia * angular velocity^2
+            TKinetic = (0.5*m*(x[1]*x[1])) + (0.5*Ig*(x[5]*x[5]));
+            return(TKinetic);
         }
     }
 
@@ -229,8 +296,11 @@ public class RollerRacer : Simulator
     {
         get{
             // ######## You have to write this part ################
+            // From equation 9: xDot*sin(psi+delta) + zDot*cos(psi+delta) - h*psiDot*cos(delta) + d*(psiDot+deltaDot)
+            // x[1] = xDot, x[4] = psi, x[9] = delta, zDot = x[3], psiDot = x[5], deltaDot = x[10]
+            double slipFront = x[1]*Math.Sin(x[4] + x[9]) + x[3]*Math.Cos(x[4] + x[9]) -h*x[5]*Math.Cos(x[9]) + d*(x[5] + x[10]);
 
-            return(-1.21212121);
+            return(slipFront);
         }
     }
 
@@ -238,15 +308,17 @@ public class RollerRacer : Simulator
     {
         get{
             // ######## You have to write this part ################
+            // From equation 5: xDot*sin(psi) + xDot*cos(psi) + b*psiDot
+            double slipBack = x[1]*Math.Sin(x[4]) + x[3]*Math.Cos(x[4]) + b*x[5];
 
-            return(-1.21212121);
+            return(slipBack);
         }
     }
-
     public double FontFrictionFactor
     {
         get{
             // ######## You have to write this part ################
+            // I'm not sure which equation from the notes relates to this part
 
             return(-1.21212121);
         }
