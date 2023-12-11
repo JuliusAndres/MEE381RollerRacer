@@ -84,7 +84,7 @@ public class Simulator
         rhsFunc(x,time,f[0]);
         for(i=0; i<n; ++i)
         {
-            xi[i] = x[i] + f[0][i]*dTime;
+            xi[i] = x[i] + 0.5*f[0][i]*dTime;
         }
 
         rhsFunc(xi,time+(0.5*dTime),f[1]);
