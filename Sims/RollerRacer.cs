@@ -3,6 +3,7 @@
 //       Equations of motion are derived in class notes.
 //============================================================================
 using System;
+using Godot;
 
 public class RollerRacer : Simulator
 {
@@ -287,7 +288,8 @@ public class RollerRacer : Simulator
             // ######## You have to write this part ################
             // Total kinetic energy should be the kinetic energy from speed and kinetic energy from inertia
             // Kinetic energy speed equation: 1/2 * m * v^2 and interia is 1/2 * Moment of Interia * angular velocity^2
-            TKinetic = (0.5*m*(x[1]*x[1])) + (0.5*Ig*(x[5]*x[5]));
+            TSpeed = Math.Sqrt((x[1]*x[1]) + (x[3]*x[3]));
+            TKinetic = (0.5*m*(TSpeed*TSpeed)) + (0.5*Ig*(x[5]*x[5]));
             return(TKinetic);
         }
     }

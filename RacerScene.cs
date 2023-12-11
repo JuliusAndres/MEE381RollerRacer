@@ -72,6 +72,8 @@ public partial class RacerScene : Node3D
 		dataDisplay.SetValue(3,"---");
 		dataDisplay.SetLabel(4,"Slip Rate R");
 		dataDisplay.SetValue(4,"---");
+		dataDisplay.SetDigitsAfterDecimal(3,6);
+		dataDisplay.SetDigitsAfterDecimal(4,6);
 
 		// set up the cart model
 		cart = GetNode<Cart>("Cart");
